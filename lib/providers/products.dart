@@ -8,45 +8,49 @@ import '../models/http_exception.dart';
 
 class Products with ChangeNotifier {
   List<Product> _items = [
-    Product(
-      id: 'p1',
-      title: 'Red Shirt',
-      description: 'A red shirt - it is pretty red!',
-      price: 29.99,
-      imageUrl:
-          'https://cdn.pixabay.com/photo/2016/10/02/22/17/red-t-shirt-1710578_1280.jpg',
-      isFavorite: false,
-    ),
-    Product(
-      id: 'p2',
-      title: 'Trousers',
-      description: 'A nice pair of trousers.',
-      price: 59.99,
-      imageUrl:
-          'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e8/Trousers%2C_dress_%28AM_1960.022-8%29.jpg/512px-Trousers%2C_dress_%28AM_1960.022-8%29.jpg',
-      isFavorite: false,
-    ),
-    Product(
-      id: 'p3',
-      title: 'Yellow Scarf',
-      description: 'Warm and cozy - exactly what you need for the winter.',
-      price: 19.99,
-      imageUrl:
-          'https://live.staticflickr.com/4043/4438260868_cc79b3369d_z.jpg',
-      isFavorite: false,
-    ),
-    Product(
-      id: 'p4',
-      title: 'A Pan',
-      description: 'Prepare any meal you want.',
-      price: 49.99,
-      imageUrl:
-          'https://upload.wikimedia.org/wikipedia/commons/thumb/1/14/Cast-Iron-Pan.jpg/1024px-Cast-Iron-Pan.jpg',
-      isFavorite: false,
-    ),
+    // Product(
+    //   id: 'p1',
+    //   title: 'Red Shirt',
+    //   description: 'A red shirt - it is pretty red!',
+    //   price: 29.99,
+    //   imageUrl:
+    //       'https://cdn.pixabay.com/photo/2016/10/02/22/17/red-t-shirt-1710578_1280.jpg',
+    //   isFavorite: false,
+    // ),
+    // Product(
+    //   id: 'p2',
+    //   title: 'Trousers',
+    //   description: 'A nice pair of trousers.',
+    //   price: 59.99,
+    //   imageUrl:
+    //       'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e8/Trousers%2C_dress_%28AM_1960.022-8%29.jpg/512px-Trousers%2C_dress_%28AM_1960.022-8%29.jpg',
+    //   isFavorite: false,
+    // ),
+    // Product(
+    //   id: 'p3',
+    //   title: 'Yellow Scarf',
+    //   description: 'Warm and cozy - exactly what you need for the winter.',
+    //   price: 19.99,
+    //   imageUrl:
+    //       'https://live.staticflickr.com/4043/4438260868_cc79b3369d_z.jpg',
+    //   isFavorite: false,
+    // ),
+    // Product(
+    //   id: 'p4',
+    //   title: 'A Pan',
+    //   description: 'Prepare any meal you want.',
+    //   price: 49.99,
+    //   imageUrl:
+    //       'https://upload.wikimedia.org/wikipedia/commons/thumb/1/14/Cast-Iron-Pan.jpg/1024px-Cast-Iron-Pan.jpg',
+    //   isFavorite: false,
+    // ),
   ];
 
   //var _showFavoritesOnly = false;
+  final String authToken;
+  final String userId;
+
+  Products(this.authToken, this._items, this.userId);
 
   List<Product> get items {
     // if (_showFavoritesOnly) {
@@ -73,9 +77,11 @@ class Products with ChangeNotifier {
   //   notifyListeners();
   // }
 
-  Future<void> fetchAndSetProducts() async {
-    final url = Uri.parse(
-      'https://flutter-sh-7bffd-default-rtdb.firebaseio.com/products.json',
+  Future<void> fetchAndSetProducts([bool filterByUser = false]) async {
+    final filterString =
+        filterByUser ? 'orderBy="creatorId"&equalTo="$userId"' : '';
+    var url = Uri.parse(
+      'https://flutter-sh-7bffd-default-rtdb.firebaseio.com/products.json?auth=$authToken&$filterString',
     );
     try {
       final response = await http.get(url);
@@ -83,6 +89,11 @@ class Products with ChangeNotifier {
       if (extractedData == null) {
         return;
       }
+      url = Uri.parse(
+        'https://flutter-sh-7bffd-default-rtdb.firebaseio.com/userfavorites/$userId.json?auth=$authToken',
+      );
+      final favoriteResponse = await http.get(url);
+      final favoriteData = json.decode(favoriteResponse.body);
       final List<Product> loadedProductes = [];
       extractedData.forEach((prodId, prodData) {
         loadedProductes.add(Product(
@@ -90,7 +101,8 @@ class Products with ChangeNotifier {
           title: prodData['title'],
           description: prodData['description'],
           imageUrl: prodData['imageUrl'],
-          isFavorite: prodData['isFavorite'],
+          isFavorite:
+              favoriteData == null ? false : favoriteData[prodId] ?? false,
           price: prodData['price'],
         ));
       });
@@ -103,7 +115,7 @@ class Products with ChangeNotifier {
 
   Future<void> addProduct(Product p) async {
     final url = Uri.parse(
-      'https://flutter-sh-7bffd-default-rtdb.firebaseio.com/products.json',
+      'https://flutter-sh-7bffd-default-rtdb.firebaseio.com/products.json?auth=$authToken',
     );
 
     try {
@@ -114,7 +126,7 @@ class Products with ChangeNotifier {
           'description': p.description,
           'price': p.price,
           'imageUrl': p.imageUrl,
-          'isFavorite': p.isFavorite,
+          'creatorId': userId
         }),
       );
       final newProd = Product(
@@ -136,7 +148,7 @@ class Products with ChangeNotifier {
     final prodIndex = _items.indexWhere((prod) => p.id == prod.id);
     if (prodIndex >= 0) {
       final url = Uri.parse(
-        'https://flutter-sh-7bffd-default-rtdb.firebaseio.com/products/$id.json',
+        'https://flutter-sh-7bffd-default-rtdb.firebaseio.com/products/$id.json?auth=$authToken',
       );
       await http.patch(url,
           body: json.encode({
@@ -154,7 +166,7 @@ class Products with ChangeNotifier {
 
   Future<void> deleteProduct(String id) async {
     final url = Uri.parse(
-      'https://flutter-sh-7bffd-default-rtdb.firebaseio.com/products/$id.json',
+      'https://flutter-sh-7bffd-default-rtdb.firebaseio.com/products/$id.json?auth=$authToken',
     );
     final existingProdIndex = _items.indexWhere((element) => id == element.id);
     var existingProd = _items[existingProdIndex];

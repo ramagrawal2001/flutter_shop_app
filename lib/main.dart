@@ -1,15 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import './screens/splash_screen.dart';
 import './screens/products_overview_screen.dart';
 import './screens/product_detail_screen.dart';
 import './screens/cart_screen.dart';
 import './screens/orders_screen.dart';
 import './screens/user_products_screen.dart';
 import './screens/edit_product_screen.dart';
+import './screens/auth_screen.dart';
 import './providers/products.dart';
 import './providers/cart.dart';
 import './providers/orders.dart';
+import './providers/auth.dart';
 
 void main() => runApp(MyApp());
 
@@ -19,33 +22,52 @@ class MyApp extends StatelessWidget {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(
-          create: (ctx) => Products(),
+          create: (ctx) => Auth(),
+        ),
+        ChangeNotifierProxyProvider<Auth, Products>(
+          update: (ctx, auth, previousProducts) => Products(
+            auth.token,
+            previousProducts == null ? [] : previousProducts.items,
+            auth.userId,
+          ),
         ),
         ChangeNotifierProvider(
           create: (ctx) => Cart(),
         ),
-        ChangeNotifierProvider(
-          create: (ctx) => Orders(),
+        ChangeNotifierProxyProvider<Auth, Orders>(
+          update: (ctx, auth, previousOrders) => Orders(auth.token, auth.userId,
+              previousOrders == null ? [] : previousOrders.orders),
         ),
       ],
       //value: Products(),
-      child: MaterialApp(
-        title: 'MyShop',
-        theme: ThemeData(
-          fontFamily: 'Lato',
-          colorScheme: ColorScheme.fromSwatch(
-            primarySwatch: Colors.purple,
-          ).copyWith(secondary: Colors.deepOrange),
+      child: Consumer<Auth>(
+        builder: (ctx, auth, _) => MaterialApp(
+          title: 'MyShop',
+          theme: ThemeData(
+            fontFamily: 'Lato',
+            colorScheme: ColorScheme.fromSwatch(
+              primarySwatch: Colors.purple,
+            ).copyWith(secondary: Colors.deepOrange),
+          ),
+          home: auth.isAuth
+              ? ProductsOverviewScreen()
+              : FutureBuilder(
+                  future: auth.tryAutoLogin(),
+                  builder: (context, snapshot) =>
+                      snapshot.connectionState == ConnectionState.waiting
+                          ? SplashScreen()
+                          : AuthScreen(),
+                ),
+          routes: {
+            ProductDetailScreen.routeName: (context) => ProductDetailScreen(),
+            CartScreen.routeName: (context) => CartScreen(),
+            OrdersScreen.routeName: (context) => OrdersScreen(),
+            UserProductsScreen.routeName: (context) => UserProductsScreen(),
+            EditProductScreen.routeName: (context) => EditProductScreen(),
+            AuthScreen.routeName: (context) => AuthScreen(),
+          },
+          debugShowCheckedModeBanner: false,
         ),
-        home: ProductsOverviewScreen(),
-        routes: {
-          ProductDetailScreen.routeName: (context) => ProductDetailScreen(),
-          CartScreen.routeName: (context) => CartScreen(),
-          OrdersScreen.routeName: (context) => OrdersScreen(),
-          UserProductsScreen.routeName: (context) => UserProductsScreen(),
-          EditProductScreen.routeName: (context) => EditProductScreen(),
-        },
-        debugShowCheckedModeBanner: false,
       ),
     );
   }
