@@ -13,6 +13,7 @@ import './providers/products.dart';
 import './providers/cart.dart';
 import './providers/orders.dart';
 import './providers/auth.dart';
+import './helpers/custom_route.dart';
 
 void main() => runApp(MyApp());
 
@@ -45,6 +46,10 @@ class MyApp extends StatelessWidget {
           title: 'MyShop',
           theme: ThemeData(
             fontFamily: 'Lato',
+            pageTransitionsTheme: PageTransitionsTheme(builders: {
+              TargetPlatform.android: CustomPageTransitionBuilder(),
+              TargetPlatform.iOS: CustomPageTransitionBuilder(),
+            }),
             colorScheme: ColorScheme.fromSwatch(
               primarySwatch: Colors.purple,
             ).copyWith(secondary: Colors.deepOrange),
